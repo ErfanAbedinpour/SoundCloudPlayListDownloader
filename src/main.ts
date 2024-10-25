@@ -3,7 +3,6 @@ import axios from 'axios'
 import archiver from 'archiver';
 import { createWriteStream, existsSync, mkdirSync } from 'fs'
 import path from 'path';
-import { forEachChild } from 'typescript';
 config({ path: ".env" });
 
 const arch = archiver('zip', { zlib: { level: 1 } });
