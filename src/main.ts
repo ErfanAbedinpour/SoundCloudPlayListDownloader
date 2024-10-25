@@ -3,6 +3,7 @@ import axios from 'axios'
 import archiver from 'archiver';
 import { createWriteStream, existsSync, mkdirSync } from 'fs'
 import path from 'path';
+import { forEachChild } from 'typescript';
 config({ path: ".env" });
 
 const arch = archiver('zip', { zlib: { level: 1 } });
@@ -31,12 +32,13 @@ interface IMusicOfPlayList {
 
 interface IMusic {
   id: string,
-  title?: string
+  title?: string;
+
 }
 
 
 export function serializeUrl(url: string) {
-  let currectLink = ((url.match(/((soundcloud.com\/\w.+\/\w+\.?|soundcloud.com\/.*$))/g)));
+  let currectLink = ((url.match(/(soundcloud.com\/.*\?|soundcloud.com\/.*$)/g)));
   // if link not match return error
 
   if (!currectLink) {
@@ -119,6 +121,7 @@ let failMusics: IMusic[] = [];
 // success donwloaded
 let successMusicCount = 1;
 
+let blackList: string[] = []
 /*
 * go and donwload music and store into zip file
 * 
@@ -127,19 +130,25 @@ async function downloadMusic(musics: IMusic[]) {
   try {
     let songName = "";
     for (const track of musics) {
-      await timeOut(1);
       try {
+        await timeOut(1);
         const url = `https://one-api.ir/soundcloud/?token=${process.env.TOKEN}&action=download&id=${track.id}`
         const response = await download(url);
         // get song name if exsist 
         songName = `${track.title ?? track.id}.mp3`;
+        console.log('imjan')
         //append into zip file 
         arch.append(response.data, { name: songName })
         console.log(`${successMusicCount}.- ${songName} added `);
         successMusicCount++;
       } catch (err) {
-        console.error(`${songName} faild to donwload  `)
-        failMusics.push({ id: track[0], title: songName });
+        console.log('faildam')
+        console.error(`${track.id} faild to donwload  `)
+        const faild = failMusics.find(m => m.id === track.id)
+        console.log('fail in faild Musics', faild)
+        if (faild) continue;
+        failMusics.push({ id: track.id });
+        console.log('push shodam', failMusics)
         await timeOut(1);
         continue;
       }
@@ -147,8 +156,9 @@ async function downloadMusic(musics: IMusic[]) {
   } catch (err) {
     throw err;
   }
-
 }
+
+
 
 // create archiver pipe line
 function createArchPipe(path: string) {
@@ -177,20 +187,23 @@ async function init(url: string) {
     if (urlInfo.type != 'playlist') {
       throw new Error('please enter valid playlist url');
     }
-
+    console.log('fetching music')
     const musics = await playListInformation(urlInfo.id);
-
+    console.log(musics)
     if (musics.musics.length < 1) {
       throw new Error('play list is empty');
     }
     const musicDirectory = createMusicDirectory();
-    const zipPath = musicDirectory + musics.playListName + '.zip';
-    // const finalPath = `../music/${musics.playListName}.zip`;
+    console.log('creating directory')
+    const zipPath = musicDirectory + "/" + musics.playListName + '.zip';
+    console.log(zipPath)
     createArchPipe(zipPath);
+    console.log('pipeing ')
     console.log('processing ....')
     await downloadMusic(musics.musics);
     console.log('please dont close app, might be take a minute :(');
     if (failMusics.length >= 1) {
+      console.log('raftam braye download faild ha', failMusics)
       // console.log(failMusics);
       await downloadMusic(failMusics);
     }
@@ -203,7 +216,7 @@ async function init(url: string) {
   }
 }
 
-const url = ""
+const url = "https://soundcloud.com/mer30boy/sets/overdoz"
 init(url);
 
 
